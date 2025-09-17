@@ -1,0 +1,54 @@
+/* Customizações adicionais */
+:root {
+  --primary: #1e40af; /* azul escuro */
+  --secondary: #fbbf24; /* amarelo */
+  --accent: #ef4444; /* vermelho */
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #f9fafb;
+  color: #1f2937;
+}
+
+/* Scrollbar estilizada */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 10px;
+}
+
+/* Botão adicionar ao carrinho */
+.btn-add {
+  background-color: var(--primary);
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.btn-add:hover, .btn-add:focus {
+  background-color: #1e3a8a;
+  outline: none;
+}
+
+.btn-add:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Modal */
+.modal-bg {
+  background-color: rgba(0,0,0,0.6);
+}
+
+header{
+  background-color: var(--primary);
+  color: var(--primary);
+}
+
