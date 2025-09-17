@@ -78,6 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- ELEMENTOS DO DOM ---
         elements: {
+            estado: document.getElementById("estado"),
+            bairro : document.getElementById("bairro"),
+            rua: document.getElementById("address"),
+            cidade: document.getElementById("cidade"),
+            cep: document.getElementById("cep"),
             checkoutUserEmail: document.getElementById('checkout-user-email'),
             userLoggedOutView: document.getElementById('user-logged-out'),
             userLoggedInView: document.getElementById('user-logged-in'),
@@ -207,6 +212,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 this.handleLogout();
             });
+
+
+            this.elements.cep.addEventListener('input', (e) => {
+                let digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+
+                if (digits.length > 5) {
+                    e.target.value = digits.slice(0, 5) + '-' + digits.slice(5);
+                } else {
+                    e.target.value = digits;
+                }
+            });
+
+
+            //Pegando dados do endereço
+            this.elements.cep.addEventListener('blur', async () => {
+                const cepComMascara = this.elements.cep.value;
+
+                if(!validaCep(cepComMascara)) return;
+
+                const cepLimpo = cepComMascara.replace(/\D/g, '');
+
+                try {
+                    const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+
+                    if (!response.ok) {
+                        throw new Error("Erro na requisição: " + response.status);
+                    }
+
+                    const data = await response.json();
+
+                    if(data.erro){
+                        console.log("CEP não encontrado.");
+                    }
+
+                    this.elements.bairro.value = data.bairro;
+                    this.elements.rua.value = data.logradouro;
+                    this.elements.estado.value = data.estado;
+                    this.elements.cidade.value = data.localidade;
+
+                } catch (error) {
+                    console.error("Erro:", error);
+                    limpaCampoEndereco();
+                }
+            });
         },
 
         // --- LÓGICA DE AUTENTICAÇÃO ---
@@ -295,14 +344,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         handleCheckoutAttempt() {
             if (this.state.cart.length === 0) {
-                alert("Login realizado com sucesso! Adicione itens ao carrinho para continuar.");
+                //alert("Login realizado com sucesso! Adicione itens ao carrinho para continuar.");
                 return;
             }
 
             if (this.state.currentUser) {
                 this.showCheckout();
             } else {
-                alert("Por favor, faça login ou cadastre-se para continuar.");
+                //alert("Por favor, faça login ou cadastre-se para continuar.");
                 this.openLoginModal();
             }
         },
@@ -315,13 +364,23 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         
         handleCheckoutSubmit(event) {
+            alert("Endereço adicionado com sucesso! (Simulação)");
             event.preventDefault();
-            const orderCode = `PCFY-${Date.now().toString().slice(-6)}`;
-            document.getElementById('order-code').textContent = orderCode;
-            this.showSection(this.elements.confirmationSection);
+            //this.showSection(this.elements.confirmationSection);
+            this.showSection(this.elements.mainSections[0]); // Volta para a home após adicionar o endereço , rota apenas teste
+            this.renderProducts(this.state.products);
             this.state.cart = [];
             this.updateCartUI();
             this.elements.checkoutForm.reset();
+            
+            //  LÓGICA ANTIGA DE CHECKOUT - FINALIZAR COMPRA
+            // event.preventDefault();
+            // const orderCode = `PCFY-${Date.now().toString().slice(-6)}`;
+            // document.getElementById('order-code').textContent = orderCode;
+            // this.showSection(this.elements.confirmationSection);
+            // this.state.cart = [];
+            // this.updateCartUI();
+            // this.elements.checkoutForm.reset();
         },
 
         // --- MÉTODOS DE RENDERIZAÇÃO E UI ---
@@ -484,3 +543,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- INICIALIZAÇÃO ---
     eCommerceApp.init(productsData);
 });
+
+//Functions Auxiliares
+function isEmpty(value){
+    return !value || value.trim() === '';
+}
+
+function validaCep(value) {
+    const cepLimpo = value.replace(/\D/g, ''); 
+    const regexCep = /^[0-9]{8}$/;
+
+    if (regexCep.test(cepLimpo)) {
+        return true;
+    }
+    
+    limpaCampoEndereco(); 
+    return false;
+}
+
+function limpaCampoEndereco(){
+    document.querySelectorAll('[data-campo="endereco"]').forEach( el => el.value = '' );
+}
