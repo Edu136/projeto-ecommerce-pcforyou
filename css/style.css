@@ -52,3 +52,9 @@ header{
   color: var(--primary);
 }
 
+/* Adicione no final do seu arquivo css/style.css */
+.selected-address {
+    border-color: #2563eb; /* Cor azul do tema */
+    border-width: 2px;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
