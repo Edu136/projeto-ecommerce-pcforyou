@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- INICIALIZAÇÃO ---
         init() {
-            this.state.products = productsData;
+            this.state.products = [];
             this.bindEvents();
 
             initCheckout(this.state, this.elements, () => this.handleFinalizePurchase());
@@ -143,6 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
             applyFiltersAndSort(this.state, this.elements);
             updateCartUI(this.state, this.elements);
             updateUserUI(this.state, this.elements);
+
+            // Carregamento de produtos é feito após definir helpers de API
         },
 
         // --- VINCULAR EVENTOS ---
@@ -272,4 +274,52 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     eCommerceApp.init();
+
+    // ---- Integração com backend de produtos ----
+    const LS_API_KEY = 'pcfy_api_base';
+    const API_DEFAULT = 'http://localhost:8080';
+    const PLACEHOLDER_IMG = 'assets/images/NBK_ASUS_ROG.jpeg';
+
+    function getApiBase() {
+        try { return localStorage.getItem(LS_API_KEY) || API_DEFAULT; } catch { return API_DEFAULT; }
+    }
+
+    function mapProdutoDtoToUi(dto) {
+        return {
+            id: dto.id,
+            name: dto.nome ?? `Produto ${dto.id}`,
+            price: dto.preco ?? 0,
+            description: dto.descricao ?? '',
+            image: `${getApiBase()}/images/first/${dto.id}`,
+            category: '',
+            bestSeller: false,
+        };
+    }
+
+    async function loadProductsFromApi(state, elements) {
+        const base = getApiBase();
+        try {
+            const res = await fetch(`${base}/produtos/DISPONIVEL`);
+            if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+            const data = await res.json();
+            const list = Array.isArray(data) ? data.map(mapProdutoDtoToUi) : [];
+            state.products = list;
+            applyFiltersAndSort(state, elements);
+        } catch (e) {
+            // fallback para dados locais se necessário
+            state.products = productsData.map(p => ({
+                id: p.id,
+                name: p.name,
+                price: p.price,
+                description: p.description,
+                image: p.image || PLACEHOLDER_IMG,
+                category: p.category || '',
+                bestSeller: !!p.bestSeller,
+            }));
+            applyFiltersAndSort(state, elements);
+            console.warn('Falha ao carregar produtos do backend:', e?.message);
+        }
+    }
+    // Depois que helpers foram definidos, carrega produtos do backend
+    loadProductsFromApi(eCommerceApp.state, eCommerceApp.elements);
 });
