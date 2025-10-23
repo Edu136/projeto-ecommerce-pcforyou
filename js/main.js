@@ -8,6 +8,7 @@ import { openCart, closeCart, toggleMobileMenu, showSection } from './components
 import { renderProducts, applyFiltersAndSort, openProductModal, closeProductModal } from './components/product.js';
 import { updateCartUI, addToCart, removeFromCart } from './components/cart.js';
 import { openLoginModal, closeLoginModal, openRegisterModal, closeRegisterModal, handleLogin, handleRegister, handleLogout, updateUserUI } from './components/auth.js';
+import { apiListAddresses } from './services/api.js';
 import { initCheckout, renderAddressList, showNewAddressForm } from './components/checkout.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,25 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
             cart: [],
             addresses: [],
             currentUser: null,
-            users: [
-                { 
-                    name: "admin", 
-                    email: "adm@adm",
-                    password: "adm",
-                    addresses: [
-                        {
-                            id: 1,
-                            cep: "30170-011",
-                            logradouro: "Avenida Álvares Cabral",
-                            numero: "123",
-                            complemento: "Apto 45",
-                            bairro: "Lourdes",
-                            cidade: "Belo Horizonte",
-                            estado: "MG"
-                        }
-                    ] 
-                }
-            ],
         },
 
         // --- ELEMENTOS DO DOM ---
@@ -245,6 +227,19 @@ document.addEventListener('DOMContentLoaded', () => {
             this.elements.checkoutUserEmail.textContent = this.state.currentUser.email;
 
             // Lógica para exibir endereços ou formulário
+            // tenta buscar endereços do backend, se tivermos ID
+            if (this.state.currentUser?.id) {
+                apiListAddresses(this.state.currentUser.id)
+                    .then(list => {
+                        this.state.currentUser.addresses = Array.isArray(list) ? list : [];
+                        if (this.state.currentUser.addresses.length > 0) {
+                            renderAddressList(this.state.currentUser, this.elements);
+                            this.elements.newAddressFormContainer.classList.add('hidden');
+                            this.elements.addressSelection.classList.remove('hidden');
+                        }
+                    })
+                    .catch(() => { /* mantém o que já tiver */ });
+            }
             if (this.state.currentUser.addresses && this.state.currentUser.addresses.length > 0) {
                 renderAddressList(this.state.currentUser, this.elements);
                 this.elements.newAddressFormContainer.classList.add('hidden');
