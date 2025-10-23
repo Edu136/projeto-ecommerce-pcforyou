@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - PC FOR YOU</title>
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Administração - PC FOR YOU</h1>
+      <div class="api-config">
+        <label for="api-base">API Base</label>
+        <input id="api-base" type="text" placeholder="http://localhost:8080" />
+        <button id="save-api">Salvar</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>Produtos - Listar</h2>
+        <div class="row">
+          <button id="btn-load-produtos">Carregar todos</button>
+          <div class="spacer"></div>
+          <input id="status-filter" type="text" placeholder="status (ex: DISPONIVEL)" />
+          <button id="btn-filter-status">Filtrar por status</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label style="display:flex; align-items:center; gap:8px">
+            <input id="only-today" type="checkbox" checked />
+            Mostrar apenas produtos criados na data:
+          </label>
+          <input id="date-filter" type="date" />
+        </div>
+        <pre id="produtos-output" class="output"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Produto - Criar</h2>
+        <form id="form-create">
+          <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap">
+            <input id="create-nome" type="text" placeholder="Nome" required />
+            <input id="create-preco" type="number" step="0.01" min="0" placeholder="Preço" required />
+            <input id="create-quantidade" type="number" min="0" placeholder="Quantidade" required />
+            <input id="create-descricao" type="text" placeholder="Descrição" required style="min-width:260px; flex:1" />
+            <button type="submit">Criar Produto</button>
+            <span id="create-status" class="status"></span>
+          </div>
+        </form>
+      </section>
+
+      <section class="card grid-2">
+        <div>
+          <h2>Produto - Editar</h2>
+          <form id="form-edit">
+            <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap">
+              <input id="edit-id" type="number" placeholder="ID do produto" required />
+              <input id="edit-nome" type="text" placeholder="Nome" required />
+              <input id="edit-preco" type="number" step="0.01" min="0" placeholder="Preço" required />
+              <input id="edit-quantidade" type="number" min="0" placeholder="Quantidade" required />
+              <input id="edit-descricao" type="text" placeholder="Descrição" required style="min-width:260px; flex:1" />
+              <button type="submit">Salvar Edição</button>
+              <span id="edit-status" class="status"></span>
+            </div>
+          </form>
+          <pre id="edit-output" class="output"></pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Produto - Excluir</h2>
+        <div class="row">
+          <input id="delete-id" type="number" placeholder="ID do produto" />
+          <button id="btn-excluir" class="danger">Excluir</button>
+          <span id="delete-status" class="status"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Imagens - Upload (única)</h2>
+        <form id="form-upload-unique">
+          <div class="row">
+            <input id="upl-id-produto" name="idProduto" type="number" placeholder="ID do produto" required />
+            <input id="upl-nome-arquivo" name="nomeDoArquivo" type="text" placeholder="Nome do arquivo" required />
+            <input id="upl-file" name="file" type="file" accept="image/*" required />
+            <button type="submit">Enviar</button>
+          </div>
+          <span id="upl-status" class="status"></span>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Imagens - Upload (múltiplas)</h2>
+        <form id="form-upload-multi">
+          <div class="row">
+            <input id="uplm-id-produto" name="idProduto" type="number" placeholder="ID do produto" required />
+            <input id="uplm-files" name="files" type="file" multiple accept="image/*" required />
+            <button type="submit">Enviar</button>
+          </div>
+          <span id="uplm-status" class="status"></span>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Imagens - Excluir</h2>
+        <div class="row">
+          <input id="img-delete-id" type="number" placeholder="ID da imagem" />
+          <button id="btn-img-excluir" class="danger">Excluir Imagem</button>
+          <span id="img-delete-status" class="status"></span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">Feito para testes de administração</footer>
+
+    <script src="js/admin.js"></script>
+  </body>
+  </html>
