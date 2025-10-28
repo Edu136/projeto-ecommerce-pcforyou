@@ -10,6 +10,7 @@ import { updateCartUI, addToCart, removeFromCart } from './components/cart.js';
 import { openLoginModal, closeLoginModal, openRegisterModal, closeRegisterModal, handleLogin, handleRegister, handleLogout, updateUserUI } from './components/auth.js';
 import { apiListAddresses } from './services/api.js';
 import { initCheckout, renderAddressList, showNewAddressForm } from './components/checkout.js';
+import { initPix } from './components/pix.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -34,12 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
             userLoggedInView: document.getElementById('user-logged-in'),
             userLoginLink: document.getElementById('user-login-link'),
             userWelcomeMessage: document.getElementById('user-welcome-message'),
+            btnAccount: document.getElementById('btn-account'),
             userLogoutButton: document.getElementById('user-logout-button'),
 
             // --- FILTROS DE PRODUTOS ---
             searchInput: document.getElementById('search'),
             categoryFilter: document.getElementById('filter-category'),
             sortFilter: document.getElementById('sort'),
+
+            // --- NAV LINKS (HOME/CATALOG) ---
+            homeLinks: document.querySelectorAll('a[href="#home"]'),
+            catalogLinks: document.querySelectorAll('a[href="#catalog"]'),
 
             // --- LISTA DE PRODUTOS ---
             productList: document.getElementById('product-list'),
@@ -52,6 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
             modalPrice: document.getElementById('modal-price'),
             modalAddCart: document.getElementById('modal-add-cart'),
             modalClose: document.getElementById('modal-close'),
+            // Minha Conta
+            accountSection: document.getElementById('account'),
+            accountName: document.getElementById('account-name'),
+            accountEmail: document.getElementById('account-email'),
+            accountAddresses: document.getElementById('account-addresses'),
+            accountNoAddress: document.getElementById('account-no-address'),
+            accountRefresh: document.getElementById('account-refresh'),
 
             // --- CARRINHO (SIDEBAR E BOTÃO) ---
             btnOpenCart: document.getElementById('btn-open-cart'),
@@ -168,10 +181,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Checkout
             elements.btnCheckout.addEventListener('click', () => this.handleCheckoutAttempt());
-            elements.checkoutForm.addEventListener('submit', (e) => this.handleCheckoutSubmit(e));
+            // O submit do checkout é tratado em js/components/checkout.js (initCheckout)
             elements.btnBackHome.addEventListener('click', () => {
                 showSection(document.getElementById('home'));
+                loadProductsFromApi(this.state, this.elements);
             });
+
+            // Navegação básica (Home / Produtos)
+            elements.homeLinks.forEach(a => a.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSection(document.getElementById('home'));
+                elements.mobileMenu?.classList.add('hidden');
+                // opcional: recarrega catálogo em background
+                loadProductsFromApi(this.state, this.elements);
+            }));
+            elements.catalogLinks.forEach(a => a.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSection(document.getElementById('catalog'));
+                elements.mobileMenu?.classList.add('hidden');
+                loadProductsFromApi(this.state, this.elements);
+            }));
 
             // Menu Mobile
             elements.btnMenu.addEventListener('click', () => toggleMobileMenu(elements));
@@ -184,6 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Autenticação
             elements.userLoginLink.addEventListener('click', (e) => { e.preventDefault(); openLoginModal(elements); });
             elements.userLogoutButton.addEventListener('click', (e) => { e.preventDefault(); handleLogout(state, elements); });
+            if (elements.btnAccount) {
+                elements.btnAccount.addEventListener('click', async () => { await this.showAccount(); });
+            }
             elements.loginModalClose.addEventListener('click', () => closeLoginModal(elements));
             elements.registerModalClose.addEventListener('click', () => closeRegisterModal(elements));
             elements.showRegisterModalBtn.addEventListener('click', () => { closeLoginModal(elements); openRegisterModal(elements); });
@@ -202,6 +234,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.estado.value = data.estado;
                 }
             });
+
+            // Oculta opções de pagamento Cartão de Crédito e Boleto
+            try {
+                const toHide = document.querySelectorAll('input[name="payment-method"][value="credit-card"], input[name="payment-method"][value="boleto"]');
+                toHide.forEach(inp => {
+                    const label = inp.closest('label');
+                    if (label) label.classList.add('hidden');
+                });
+                // Define PIX como padrão se existir
+                const pixRadio = document.querySelector('input[name="payment-method"][value="pix"]');
+                if (pixRadio) pixRadio.checked = true;
+            } catch {}
         },
         
         // --- LÓGICA DE CHECKOUT (Orquestração) ---
@@ -233,6 +277,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     .then(list => {
                         this.state.currentUser.addresses = Array.isArray(list) ? list : [];
                         if (this.state.currentUser.addresses.length > 0) {
+                            if (!this.state.selectedAddressId) {
+                                this.state.selectedAddressId = this.state.currentUser.addresses[0].id;
+                            }
                             renderAddressList(this.state.currentUser, this.elements);
                             this.elements.newAddressFormContainer.classList.add('hidden');
                             this.elements.addressSelection.classList.remove('hidden');
@@ -241,6 +288,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     .catch(() => { /* mantém o que já tiver */ });
             }
             if (this.state.currentUser.addresses && this.state.currentUser.addresses.length > 0) {
+                if (!this.state.selectedAddressId) {
+                    this.state.selectedAddressId = this.state.currentUser.addresses[0].id;
+                }
                 renderAddressList(this.state.currentUser, this.elements);
                 this.elements.newAddressFormContainer.classList.add('hidden');
                 this.elements.addressSelection.classList.remove('hidden');
@@ -255,6 +305,53 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(this.elements.checkoutSection);
         },
 
+        async showAccount() {
+            if (!this.state.currentUser) { openLoginModal(this.elements); return; }
+            const u = this.state.currentUser;
+            this.elements.accountName.textContent = u.name || '-';
+            this.elements.accountEmail.textContent = u.email || '-';
+            if (u.id) {
+                try {
+                    const list = await apiListAddresses(u.id);
+                    this.state.currentUser.addresses = Array.isArray(list) ? list : [];
+                } catch {}
+            }
+            this.renderAccountAddresses();
+            showSection(this.elements.accountSection);
+            // wire refresh click
+            if (this.elements.accountRefresh && !this._refreshBound) {
+                this._refreshBound = true;
+                this.elements.accountRefresh.addEventListener('click', async () => {
+                    if (!this.state.currentUser?.id) return;
+                    try {
+                        const list = await apiListAddresses(this.state.currentUser.id);
+                        this.state.currentUser.addresses = Array.isArray(list) ? list : [];
+                        this.renderAccountAddresses();
+                    } catch {}
+                });
+            }
+        },
+
+        renderAccountAddresses() {
+            const list = this.state.currentUser?.addresses || [];
+            const box = this.elements.accountAddresses;
+            const empty = this.elements.accountNoAddress;
+            box.innerHTML = '';
+            if (list.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            for (const a of list) {
+                const div = document.createElement('div');
+                div.className = 'p-3 border rounded-md';
+                div.innerHTML = `<div class=\"font-semibold\">${a.logradouro}, ${a.numero}</div>
+                                 <div class=\"text-sm text-gray-600\">${a.bairro} - ${a.cidade}/${a.estado} • CEP: ${a.cep || ''}</div>
+                                 ${a.complemento ? `<div class=\"text-sm text-gray-600\">${a.complemento}</div>` : ''}`;
+                box.appendChild(div);
+            }
+        },
+
 
         handleFinalizePurchase() {
             // Lógica final de compra
@@ -265,6 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.state.cart = [];
             updateCartUI(this.state, this.elements);
             this.elements.checkoutForm.reset();
+            // recarrega catálogo
+            loadProductsFromApi(this.state, this.elements);
         },
     };
 

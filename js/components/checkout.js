@@ -1,12 +1,17 @@
 // js/components/checkout.js
 import { formatCurrency } from '../utils/helpers.js';
-import { apiListAddresses, apiAddAddress } from '../services/api.js';
+import { apiListAddresses, apiAddAddress, getApiBase } from '../services/api.js';
 
 // Renderiza o resumo do pedido
 function renderOrderSummary(state, elements) {
-  const { currentUser, cart, selectedAddressId } = state;
+  const { currentUser, cart } = state;
   const { orderSummary } = elements;
-  const selectedAddress = (currentUser.addresses || []).find(addr => String(addr.id) === String(selectedAddressId));
+  let selectedAddress = (currentUser.addresses || []).find(addr => String(addr.id) === String(state.selectedAddressId));
+  // fallback: seleciona o primeiro endereço caso nenhum tenha sido escolhido
+  if (!selectedAddress && (currentUser.addresses || []).length > 0) {
+    state.selectedAddressId = currentUser.addresses[0].id;
+    selectedAddress = currentUser.addresses[0];
+  }
   if (!selectedAddress) {
     orderSummary.innerHTML = '<p class="text-red-500">Erro: Endereco nao selecionado.</p>';
     return;
@@ -63,6 +68,8 @@ export function renderAddressList(user, elements) {
 export function showNewAddressForm(elements) {
   elements.addressSelection.classList.add('hidden');
   elements.newAddressFormContainer.classList.remove('hidden');
+  // marca salvar endereço como padrão, se existir o checkbox
+  try { const cb = elements.checkoutForm?.querySelector('#save-address'); if (cb) cb.checked = true; } catch {}
 }
 
 function proceedToPayment(state, elements) {
@@ -136,16 +143,66 @@ export function initCheckout(state, elements, finalizeCallback) {
       } catch (_) { /* fallback local */ }
       if (!Array.isArray(state.currentUser.addresses)) state.currentUser.addresses = [];
       state.currentUser.addresses.push(created);
+      // atualiza a lista na UI
+      try { renderAddressList(state.currentUser, elements); } catch {}
     }
     state.selectedAddressId = created.id;
     proceedToPayment(state, elements);
   });
 
   // Finalizar compra
-  elements.btnFinalizePurchase.addEventListener('click', () => {
+  elements.btnFinalizePurchase.addEventListener('click', async () => {
     const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
     if (!paymentMethod) { alert('Selecione uma forma de pagamento.'); return; }
+
+    if (paymentMethod.value === 'pix') {
+      const chaveInput = document.getElementById('pix-key-input');
+      const chave = (chaveInput?.value || '').trim();
+      if (!chave) { alert('Informe a chave Pix.'); return; }
+
+      const total = (state.cart || []).reduce((s, it) => s + (it.price * it.quantity), 0);
+      const nome = (state.currentUser?.name || 'LOJA').toString().substring(0, 25);
+      const cidade = 'BELO HORIZONTE';
+      const txid = `PCFY-${Date.now().toString().slice(-6)}`;
+      const base = getApiBase();
+      try {
+        const payloadRes = await fetch(`${base}/pix/payload`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chave, nome, cidade, valor: Number(total.toFixed(2)), txid })
+        });
+        if (!payloadRes.ok) { alert('Erro ao gerar payload Pix'); return; }
+        const payloadText = await payloadRes.text();
+        const payloadArea = document.getElementById('pix-payload');
+        if (payloadArea) payloadArea.value = payloadText;
+
+        const qrRes = await fetch(`${base}/pix/qrcode`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chave, nome, cidade, valor: Number(total.toFixed(2)), txid })
+        });
+        if (!qrRes.ok) { alert('Erro ao gerar QR Code Pix'); return; }
+        const blob = await qrRes.blob();
+        const url = URL.createObjectURL(blob);
+        const img = document.getElementById('pix-qr-img');
+        if (img) img.src = url;
+        const modal = document.getElementById('pix-modal');
+        if (modal) modal.classList.remove('hidden');
+        return; // não finaliza compra ainda
+      } catch (e) {
+        alert('Falha ao contatar a API Pix. Verifique a API Base e o backend.');
+        return;
+      }
+    }
+
+    // outras formas de pagamento
+    finalizeCallback();
+  });
+
+  // Confirma pagamento Pix no modal e finaliza compra
+  const pixConfirmBtn = document.getElementById('pix-confirm');
+  const pixModal = document.getElementById('pix-modal');
+  pixConfirmBtn && pixConfirmBtn.addEventListener('click', () => {
+    // fecha modal e conclui fluxo normal
+    try { pixModal?.classList.add('hidden'); } catch {}
     finalizeCallback();
   });
 }
-
