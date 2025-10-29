@@ -7,7 +7,6 @@ export function closeLoginModal(elements) { elements.loginModal.classList.add('h
 export function openRegisterModal(elements) { elements.registerModal.classList.remove('hidden'); }
 export function closeRegisterModal(elements) { elements.registerModal.classList.add('hidden'); elements.registerForm.reset(); }
 
-// Login via API
 export async function handleLogin(event, state, elements, checkoutCallback) {
   event.preventDefault();
   elements.loginErrorMessage.classList.add('hidden');
@@ -18,22 +17,43 @@ export async function handleLogin(event, state, elements, checkoutCallback) {
     const user = await apiLogin({ email, senha });
     const addresses = Array.isArray(user?.enderecos) ? user.enderecos : (Array.isArray(user?.addresses) ? user.addresses : []);
     const nameGuess = email.includes('@') ? email.split('@')[0] : email;
+    
     state.currentUser = {
       id: user?.id ?? null,
       name: user?.nome ?? user?.name ?? nameGuess,
       email: user?.email ?? email,
       addresses: addresses || []
     };
+    
     if ((!state.currentUser.addresses || state.currentUser.addresses.length === 0) && state.currentUser.id) {
       try { state.currentUser.addresses = await apiListAddresses(state.currentUser.id); } catch {}
     }
+
+    // --- 2. ADICIONE A SOLUÇÃO AQUI ---
+    // Salva o usuário no localStorage para persistir o login
+    try {
+      // Salva o objeto 'currentUser' inteiro como uma string JSON
+      localStorage.setItem('currentUser', JSON.stringify(state.currentUser));
+      
+      // Salva o 'userId' separadamente (para sua função de criar pedido)
+      if (state.currentUser.id) {
+        localStorage.setItem('userId', state.currentUser.id);
+      }
+    } catch (storageError) {
+      console.error("Falha ao salvar no localStorage:", storageError);
+      // (Não é um erro fatal, o usuário ainda está logado nesta sessão)
+    }
+    // --- FIM DA MODIFICAÇÃO ---
+
+    // 3. Atualiza a UI e continua o fluxo
     updateUserUI(state, elements);
     closeLoginModal(elements);
     const wantsCheckout = !!state.checkoutIntent;
     state.checkoutIntent = false;
     if (checkoutCallback && wantsCheckout) checkoutCallback();
+    
   } catch (e) {
-    elements.loginErrorMessage.textContent = 'Email ou senha invÃ¡lidos';
+    elements.loginErrorMessage.textContent = 'Email ou senha inválidos';
     elements.loginErrorMessage.classList.remove('hidden');
     setTimeout(() => elements.loginErrorMessage.classList.add('hidden'), 5000);
   }
@@ -51,7 +71,7 @@ export async function handleRegister(event, state, elements, checkoutCallback) {
   try {
     const user = await apiRegisterUser({ nome, email, senha });
     state.currentUser = { id: user?.id ?? null, name: user?.nome ?? nome, email: user?.email ?? email, addresses: [] };
-    alert('Cadastro realizado com sucesso! VocÃª jÃ¡ estÃ¡ logado.');
+    alert('Cadastro realizado com sucesso! Você já está logado.');
     updateUserUI(state, elements);
     closeRegisterModal(elements);
     const wantsCheckout = !!state.checkoutIntent;

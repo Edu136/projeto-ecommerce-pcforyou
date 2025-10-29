@@ -40,6 +40,9 @@
         <form id="form-create">
           <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap">
             <input id="create-nome" type="text" placeholder="Nome" required />
+            <select id="create-categoria" required>
+                <option value="" disabled selected>Selecione uma categoria...</option>  
+            </select>
             <input id="create-preco" type="number" step="0.01" min="0" placeholder="Preço" required />
             <input id="create-quantidade" type="number" min="0" placeholder="Quantidade" required />
             <input id="create-descricao" type="text" placeholder="Descrição" required style="min-width:260px; flex:1" />
@@ -56,6 +59,9 @@
             <div class="row" style="gap:12px; align-items:stretch; flex-wrap:wrap">
               <input id="edit-id" type="number" placeholder="ID do produto" required />
               <input id="edit-nome" type="text" placeholder="Nome" required />
+              <select id="edit-categoria" required>
+                <option value="" disabled selected>Selecione uma categoria...</option>  
+            </select>
               <input id="edit-preco" type="number" step="0.01" min="0" placeholder="Preço" required />
               <input id="edit-quantidade" type="number" min="0" placeholder="Quantidade" required />
               <input id="edit-descricao" type="text" placeholder="Descrição" required style="min-width:260px; flex:1" />

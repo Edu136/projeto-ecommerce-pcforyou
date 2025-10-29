@@ -218,7 +218,7 @@
       return setStatus('#create-status', 'Preencha todos os campos válidos', false);
     }
 
-    const body = { nome, descricao, preco, quantidade };
+    const body = { nome, descricao, preco, quantidade , categoriaId: toNumber(qv('#create-categoria'))};
     setStatus('#create-status', 'Enviando...');
     try {
       const res = await fetch(`${getBase()}/produtos/add`, {
@@ -258,7 +258,7 @@
       return setStatus('#edit-status', 'Preencha todos os campos válidos', false);
     }
 
-    const body = { nome, descricao, preco, quantidade };
+    const body = { nome, descricao, preco, quantidade, categoriaId: toNumber(qv('#edit-categoria')) };
     setStatus('#edit-status', 'Enviando...');
     try {
       const res = await fetch(`${getBase()}/produtos/editar/${encodeURIComponent(id)}`, {
@@ -284,24 +284,6 @@
     }
   });
 
-  // (Seção de Vender removida a pedido)
-
-  // Excluir produto
-  qs('#btn-excluir').addEventListener('click', async () => {
-    clearAllStatuses('#delete-status');
-    const id = qv('#delete-id');
-    if (!id) return setStatus('#delete-status', 'Informe o ID', false);
-    setStatus('#delete-status', 'Excluindo...');
-    try {
-      const res = await fetch(`${getBase()}/produtos/delete/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok && res.status !== 204) throw new Error(`${res.status} ${res.statusText}`);
-      setStatus('#delete-status', 'Excluído com sucesso');
-    } catch (e) {
-      setStatus('#delete-status', 'Erro: ' + e.message, false);
-    }
-  });
 
   // Upload única
   qs('#form-upload-unique').addEventListener('submit', async (ev) => {
@@ -365,5 +347,60 @@
     } catch (e) {
       setStatus('#img-delete-status', 'Erro: ' + e.message, false);
     }
+  });
+
+  async function listaCategorias(){
+
+    const url = `http://localhost:8080/categorias/all`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET'
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao buscar categorias');
+      }
+      return response.json();
+
+    } catch (error) {
+      console.error(`Erro na listaCategorias (GET ${url}):`, error);  
+      if (error.message.includes('Failed to fetch')) {
+          throw new Error('Erro de rede ou CORS. Verifique o console e o backend.');
+      }
+      throw error;
+    }
+  }
+
+  async function populaDropdownCategorias() {
+    // Pega o elemento <select>
+    const selectElement = document.getElementById('create-categoria');
+    const selectElementEdit = document.getElementById('edit-categoria');
+    
+    try {
+      // 1. Chama a API
+      const categorias = await listaCategorias(); 
+
+      // 2. Faz um loop e cria os <option>
+      for (const categoria of categorias) {
+        // 'categoria' aqui é o seu CategoriaResponseDTO (ex: { id: 1, nomeCategoria: "Placas de Vídeo" })
+        
+        const option = document.createElement('option');
+        option.value = categoria.id; // O valor será o ID (ex: 1)
+        option.textContent = categoria.nomeCategoria; // O texto será o Nome (ex: "Placas de Vídeo")
+        
+        selectElement.appendChild(option);
+        selectElementEdit.appendChild(option.cloneNode(true));
+      }
+      
+    } catch (error) {
+      console.error("Falha ao popular dropdown de categorias:", error);
+      // Adiciona uma opção de erro no dropdown
+      selectElement.innerHTML = '<option value="" disabled>Falha ao carregar categorias</option>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+      populaDropdownCategorias();
   });
 })();

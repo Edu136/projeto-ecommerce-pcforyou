@@ -85,3 +85,75 @@ export async function apiEditAddress(id, addr) {
 export async function apiDeleteAddress(id) {
   return apiJson(`/enderecos/delete/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+export async function criarPedidoNoBanco(userId, cart) {
+  
+  const itensDTO = cart.map(item => ({
+    produtoId: item.id,
+    quantidade: item.quantity || 1
+  }));
+
+  const pedidoRequest = {
+    userId: Number(userId), 
+    itens: itensDTO
+  };
+
+  console.log("Enviando pedido para o backend:", pedidoRequest);
+
+  try {
+    const response = await fetch('http://localhost:8080/pedidos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(pedidoRequest)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json(); 
+      console.error('Erro ao criar pedido:', errorData);
+      throw new Error(errorData.message || 'Falha ao registrar o pedido. Verifique o console.');
+    }
+
+    const pedidoCriado = await response.json();
+    console.log("Pedido criado com sucesso:", pedidoCriado);
+    return pedidoCriado;
+
+  } catch (error) {
+    console.error('Erro de rede ou lógica ao criar pedido:', error);
+    alert(`Erro ao finalizar pedido: ${error.message}`);
+    return null; 
+  }
+}
+
+
+export async function apiListPedidos(userId) {
+  
+  const url = `http://localhost:8080/pedidos/user/${userId}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao buscar pedidos');
+    }
+
+    return response.json(); 
+
+  } catch (error) {
+    console.error(`Erro na apiListPedidos (GET ${url}):`, error);
+    if (error.message.includes('Failed to fetch')) {
+        throw new Error('Erro de rede ou CORS. Verifique o console e o backend.');
+    }
+    throw error;
+  }
+}
+
+
+
+
+
+

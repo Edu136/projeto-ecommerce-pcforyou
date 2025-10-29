@@ -1,6 +1,6 @@
 ﻿// js/components/checkout.js
 import { formatCurrency } from '../utils/helpers.js';
-import { apiListAddresses, apiAddAddress, getApiBase } from '../services/api.js';
+import { apiListAddresses, apiAddAddress, criarPedidoNoBanco } from '../services/api.js';
 
 // Renderiza o resumo do pedido
 function renderOrderSummary(state, elements) {
@@ -156,60 +156,99 @@ export function initCheckout(state, elements, finalizeCallback) {
   });
 
   // Finalizar compra
-  elements.btnFinalizePurchase.addEventListener('click', async () => {
-    const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
-    if (!paymentMethod) { alert('Selecione uma forma de pagamento.'); return; }
+  // Finalizar compra
+elements.btnFinalizePurchase.addEventListener('click', async () => {
+  const paymentMethod = document.querySelector('input[name="payment-method"]:checked');
+  if (!paymentMethod) {
+    alert('Selecione uma forma de pagamento.');
+    return;
+  }
 
-    if (paymentMethod.value === 'pix') {
-      const chaveInput = document.getElementById('pix-key-input');
-      const chave = (chaveInput?.value || '').trim();
-      const total = (state.cart || []).reduce((s, it) => s + (Number(it.price) * Number(it.quantity || 1)), 0);
-      if (!Number.isFinite(total) || total <= 0) {
-        alert('Carrinho vazio ou total inválido para PIX.');
-        return;
-      }
-      const nome = (state.currentUser?.name || 'LOJA').toString().substring(0, 25);
-      const cidade = 'BELO HORIZONTE';
-      const txid = `PCFY-${Date.now().toString().slice(-6)}`;
-      const base = getApiBase();
-      const pixRequest = {
-        nome,
-        cidade,
-        valor: total.toFixed(2),
-        txid
-      };
-      if (chave) pixRequest.chave = chave;
-      try {
-        const payloadRes = await fetch(`${base}/pix/payload`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pixRequest)
-        });
-        if (!payloadRes.ok) { alert('Erro ao gerar payload Pix'); return; }
-        const payloadText = await payloadRes.text();
-        const payloadArea = document.getElementById('pix-payload');
-        if (payloadArea) payloadArea.value = payloadText;
+  // --- ETAPA 1: VALIDAR O CLIENTE ---
+  
+  // (EXEMPLO: Pegando o ID do usuário do localStorage)
+  // Você DEVE ter salvo o ID do usuário no localStorage após o login.
+  const userId = localStorage.getItem('userId'); 
+  
+  if (!userId) {
+    alert('Você não está logado. Faça o login para continuar.');
+    return; // Para o processo
+  }
 
-        const qrRes = await fetch(`${base}/pix/qrcode`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pixRequest)
-        });
-        if (!qrRes.ok) { alert('Erro ao gerar QR Code Pix'); return; }
-        const blob = await qrRes.blob();
-        const url = URL.createObjectURL(blob);
-        const img = document.getElementById('pix-qr-img');
-        if (img) img.src = url;
-        const modal = document.getElementById('pix-modal');
-        if (modal) modal.classList.remove('hidden');
-        return; // nÃ£o finaliza compra ainda
+  // Validar carrinho
+  const cart = state.cart || [];
+  if (cart.length === 0) {
+    alert('Seu carrinho está vazio.');
+    return;
+  }
+
+  // --- ETAPA 2: SALVAR O PEDIDO NO BANCO ---
+  
+  // Chama a função que envia para o backend.
+  // O backend vai validar o estoque e salvar.
+  const pedidoCriado = await criarPedidoNoBanco(userId, cart);
+
+  if (pedidoCriado === null) {
+    // A função 'criarPedidoNoBanco' já exibiu o alerta de erro (ex: "Fora de estoque")
+    return; // Para a execução, o pedido falhou.
+  }
+
+  // ----- SUCESSO! O Pedido (ID: pedidoCriado.id) FOI CRIADO NO BANCO -----
+  // O estoque já foi atualizado pelo backend.
+
+  // --- ETAPA 3: PROCESSAR O PAGAMENTO (INTERFACE) ---
+  
+  if (paymentMethod.value === 'pix') {
+    console.log("Pedido salvo no banco. Gerando PIX...");
+
+    // (Aqui você usa a sua gambiarra do PIX, pois o pedido já está salvo)
+    try {
+      const payloadText = "00020126360014BR.GOV.BCB.PIX0115seuemail@exemplo.com0209Pagamento520400005303986540525.005802BR5909NOME DO RECEBEDOR600D BELO HORIZONTE62070503***6304A13B";
+      
+      const qrBase64 = "https://www.cjf.jus.br/cjf/corregedoria-da-justica-federal/turma-nacional-de-uniformizacao/QRCODE.png/@@images/5b045579-9526-478a-9165-25a590ebab68.png";
+
+      // Atualiza campo de texto
+      const payloadArea = document.getElementById('pix-payload');
+      if (payloadArea) payloadArea.value = payloadText;
+
+      // Atualiza imagem do QR Code
+      const img = document.getElementById('pix-qr-img');
+      if (img) img.src = qrBase64;
+
+      // Exibe modal Pix
+      const modal = document.getElementById('pix-modal');
+      if (modal) modal.classList.remove('hidden');
+
+      alert('Pedido recebido! (ID: ' + pedidoCriado.id + '). Aguardando pagamento do PIX.');
+      
+      // Limpe o carrinho do frontend (pois o pedido foi criado)
+      // state.cart = [];
+      // updateCartUI(); // (chame sua função de atualizar o carrinho na tela)
+
+      return; // Espera o pagamento
+      
       } catch (e) {
-        alert('Falha ao contatar a API Pix. Verifique a API Base e o backend.');
+        console.error('Erro ao gerar QR Code PIX:', e);
+        alert('O pedido foi salvo, mas falhamos ao gerar o QR Code. Tente novamente.');
         return;
       }
     }
 
-    // outras formas de pagamento
-    finalizeCallback();
-  });
+  // Se for outro método de pagamento (Boleto, Cartão...)
+  // O pedido JÁ FOI SALVO.
+  alert('Pedido finalizado com sucesso! (ID: ' + pedidoCriado.id + ')');
+  
+  // Limpe o carrinho do frontend
+  // state.cart = [];
+  // updateCartUI(); // (chame sua função de atualizar o carrinho na tela)
+  
+  // Seu finalizeCallback() original não é mais necessário aqui, 
+  // pois já fizemos tudo.
+  // finalizeCallback(); 
+});
+
+
+
 
   // Confirma pagamento Pix no modal e finaliza compra
   const pixConfirmBtn = document.getElementById('pix-confirm');

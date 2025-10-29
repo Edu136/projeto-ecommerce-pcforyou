@@ -10,7 +10,7 @@ import { updateCartUI, addToCart, removeFromCart } from './components/cart.js';
 import { openLoginModal, closeLoginModal, openRegisterModal, closeRegisterModal, handleLogin, handleRegister, handleLogout, updateUserUI, handleForgotPassword } from './components/auth.js';
 import { apiListAddresses } from './services/api.js';
 import { initCheckout, renderAddressList, showNewAddressForm } from './components/checkout.js';
-import { initPix } from './components/pix.js';
+import { apiListPedidos } from './services/api.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -67,6 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
             accountAddresses: document.getElementById('account-addresses'),
             accountNoAddress: document.getElementById('account-no-address'),
             accountRefresh: document.getElementById('account-refresh'),
+            accountOrders: document.getElementById('account-orders'),
+            accountNoOrders: document.getElementById('account-no-orders'),
+            accountRefreshOrders: document.getElementById('account-refresh-orders'),
 
             // --- CARRINHO (SIDEBAR E BOTÃƒO) ---
             btnOpenCart: document.getElementById('btn-open-cart'),
@@ -418,17 +421,147 @@ document.addEventListener('DOMContentLoaded', () => {
             const box = this.elements.accountAddresses;
             const empty = this.elements.accountNoAddress;
             box.innerHTML = '';
+            
             if (list.length === 0) {
                 empty.classList.remove('hidden');
                 return;
             }
+            
             empty.classList.add('hidden');
+            
             for (const a of list) {
+                
+                const card = document.createElement('div');
+                card.className = 'p-3 border rounded-md flex justify-between items-start'; 
+
+                
+                const textDiv = document.createElement('div');
+                textDiv.innerHTML = `<div class="font-semibold">${a.logradouro}, ${a.numero}</div>
+                                     <div class="text-sm text-gray-600">${a.bairro} - ${a.cidade}/${a.estado} • CEP: ${a.cep || ''}</div>
+                                     ${a.complemento ? `<div class="text-sm text-gray-600">${a.complemento}</div>` : ''}`;
+
+                const editButton = document.createElement('button');
+                editButton.className = 'text-sm text-blue-600 hover:underline flex-shrink-0 ml-4';
+                editButton.textContent = 'Editar';
+                
+                editButton.addEventListener('click', () => {
+                    this.handleEditAddress(a); 
+                });
+
+                
+                card.appendChild(textDiv);
+                card.appendChild(editButton);
+                box.appendChild(card);
+            }
+        },
+
+        handleEditAddress(addressObject) {
+            console.log("Editar endereço:", addressObject);
+            alert('Lógica para editar o endereço (ID: ' + addressObject.id + ') ainda não implementada.');
+        },
+
+        // A função que você já tem, agora ATUALIZADA
+        async showAccount() {
+            if (!this.state.currentUser) {
+                this.state.checkoutIntent = false;
+                openLoginModal(this.elements);
+                return;
+            }
+            
+            const u = this.state.currentUser;
+            this.elements.accountName.textContent = u.name || '-';
+            this.elements.accountEmail.textContent = u.email || '-';
+
+            // --- 1. Lógica de Endereços (você já tem) ---
+            if (u.id) {
+                try {
+                    const list = await apiListAddresses(u.id);
+                    this.state.currentUser.addresses = Array.isArray(list) ? list : [];
+                } catch (e) {
+                    console.error("Erro ao buscar endereços:", e);
+                }
+            }
+            this.renderAccountAddresses(); // (Sua função de renderizar endereços)
+            
+            // --- 2. NOVA LÓGICA DE PEDIDOS ---
+            if (u.id) {
+                this.elements.accountOrders.innerHTML = ''; // Limpa a lista
+                this.elements.accountNoOrders.classList.remove('hidden');
+                this.elements.accountNoOrders.textContent = 'Carregando pedidos...';
+                try {
+                    // Chama a API que acabamos de criar
+                    const pedidos = await apiListPedidos(u.id); 
+                    this.state.currentUser.pedidos = Array.isArray(pedidos) ? pedidos : [];
+                    this.renderAccountPedidos(); // Chame a nova função de renderização
+                } catch (e) {
+                    console.error("Erro ao buscar pedidos:", e);
+                    this.elements.accountNoOrders.textContent = `Falha ao carregar pedidos. (Erro: ${e.message})`;
+                    this.state.currentUser.pedidos = [];
+                }
+            }
+            // ---------------------------------
+
+            showSection(this.elements.accountSection);
+            
+            // ... (seu listener de refresh de endereço existente) ...
+            // if (this.elements.accountRefresh && !this._refreshBound) { ... }
+
+            // --- 3. ADICIONE O LISTENER DE REFRESH DE PEDIDOS ---
+            if (this.elements.accountRefreshOrders && !this._refreshOrdersBound) {
+                this._refreshOrdersBound = true; // Flag para não adicionar o listener várias vezes
+                
+                this.elements.accountRefreshOrders.addEventListener('click', async () => {
+                    if (!this.state.currentUser?.id) return;
+                    
+                    this.elements.accountOrders.innerHTML = '';
+                    this.elements.accountNoOrders.classList.remove('hidden');
+                    this.elements.accountNoOrders.textContent = 'Recarregando...';
+                    
+                    try {
+                        const pedidos = await apiListPedidos(this.state.currentUser.id);
+                        this.state.currentUser.pedidos = Array.isArray(pedidos) ? pedidos : [];
+                        this.renderAccountPedidos();
+                    } catch (e) {
+                        console.error("Erro ao recarregar pedidos:", e);
+                        this.elements.accountNoOrders.textContent = 'Falha ao recarregar pedidos.';
+                    }
+                });
+            }
+        },
+
+        renderAccountPedidos() {
+            const list = this.state.currentUser?.pedidos || [];
+            const box = this.elements.accountOrders; 
+            const empty = this.elements.accountNoOrders;
+            
+            box.innerHTML = ''; // Limpa o "Carregando..."
+            
+            if (list.length === 0) {
+                empty.textContent = 'Nenhum pedido encontrado.'; // Texto final
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            empty.classList.add('hidden');
+            
+            for (const p of list) {
+                // 'p' é o seu PedidoResponseDTO
                 const div = document.createElement('div');
                 div.className = 'p-3 border rounded-md';
-                div.innerHTML = `<div class=\"font-semibold\">${a.logradouro}, ${a.numero}</div>
-                                 <div class=\"text-sm text-gray-600\">${a.bairro} - ${a.cidade}/${a.estado} â€¢ CEP: ${a.cep || ''}</div>
-                                 ${a.complemento ? `<div class=\"text-sm text-gray-600\">${a.complemento}</div>` : ''}`;
+
+                // Cria o HTML para os produtos dentro do pedido
+                const produtosHtml = p.produtos.map(item => 
+                    `<li class="text-sm text-gray-600">${item.quantidade}x ${item.nome} (R$ ${item.preco.toFixed(2)})</li>`
+                ).join('');
+
+                // Cria o 'card' do pedido
+                div.innerHTML = `<div class="flex justify-between items-center">
+                                <div class="font-semibold">Pedido #${p.id}</div>
+                                <div class="font-bold text-lg">R$ ${p.total.toFixed(2)}</div>
+                                </div>
+                                <ul class="list-disc pl-5 mt-2">
+                                ${produtosHtml}
+                                </ul>`;
                 box.appendChild(div);
             }
         },

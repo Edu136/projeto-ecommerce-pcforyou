@@ -52,7 +52,7 @@ export function initPix(state, elements) {
 
     const nome = (state.currentUser?.name || 'Cliente').toString().substring(0, 25);
     const cidade = DEFAULT_CITY;
-    const txid = `PCFY-${Date.now().toString().slice(-10)}`;
+    const txid = `PCFY${Date.now().toString().slice(-10)}`;
 
     try {
       const qrCodePix = QrCodePix({
