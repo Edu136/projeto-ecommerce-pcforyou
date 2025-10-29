@@ -1,4 +1,4 @@
-// js/components/auth.js (API-driven)
+﻿// js/components/auth.js (API-driven)
 import { apiRegisterUser, apiLogin, apiChangePassword, apiListAddresses } from '../services/api.js';
 
 // Modais
@@ -33,7 +33,7 @@ export async function handleLogin(event, state, elements, checkoutCallback) {
     state.checkoutIntent = false;
     if (checkoutCallback && wantsCheckout) checkoutCallback();
   } catch (e) {
-    elements.loginErrorMessage.textContent = 'Email ou senha inválidos';
+    elements.loginErrorMessage.textContent = 'Email ou senha invÃ¡lidos';
     elements.loginErrorMessage.classList.remove('hidden');
     setTimeout(() => elements.loginErrorMessage.classList.add('hidden'), 5000);
   }
@@ -51,7 +51,7 @@ export async function handleRegister(event, state, elements, checkoutCallback) {
   try {
     const user = await apiRegisterUser({ nome, email, senha });
     state.currentUser = { id: user?.id ?? null, name: user?.nome ?? nome, email: user?.email ?? email, addresses: [] };
-    alert('Cadastro realizado com sucesso! Você já está logado.');
+    alert('Cadastro realizado com sucesso! VocÃª jÃ¡ estÃ¡ logado.');
     updateUserUI(state, elements);
     closeRegisterModal(elements);
     const wantsCheckout = !!state.checkoutIntent;
@@ -70,16 +70,38 @@ export function handleLogout(state, elements) {
   updateUserUI(state, elements);
 }
 
-// Esqueci a senha (mínimo)
-export async function handleForgotPassword(state) {
-  const id = prompt('Informe seu ID de usuário para redefinir a senha:');
-  if (!id) return;
-  const newPass = prompt('Informe a nova senha:');
-  if (!newPass) return;
-  try { await apiChangePassword({ id, newPassword: newPass }); alert('Senha alterada com sucesso. Faça login novamente.'); }
-  catch (e) { alert('Falha ao alterar senha: ' + (e.message || 'Erro desconhecido')); }
-}
+// Esqueci a senha (mÃ­nimo)
+export async function handleForgotPassword(state, elements, { email, newPassword }) {
+  const messageEl = elements?.forgotPasswordMessage;
+  const showMessage = (text, isError = false) => {
+    if (!messageEl) return;
+    messageEl.textContent = text;
+    messageEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
+    messageEl.classList.add(isError ? 'text-red-500' : 'text-green-600');
+  };
 
+  const trimmedEmail = (email || '').trim();
+  const trimmedPassword = (newPassword || '').trim();
+
+  if (!trimmedEmail) {
+    showMessage('Informe o e-mail cadastrado.', true);
+    return false;
+  }
+
+  if (!trimmedPassword) {
+    showMessage('Informe a nova senha.', true);
+    return false;
+  }
+
+  try {
+    await apiChangePassword({ email: trimmedEmail, newPassword: trimmedPassword });
+    showMessage('Senha alterada com sucesso. Utilize a nova senha para entrar.');
+    return true;
+  } catch (e) {
+    showMessage(e.message || 'Falha ao alterar senha. Tente novamente.', true);
+    return false;
+  }
+}
 // UI
 export function updateUserUI(state, elements) {
   const isLoggedIn = !!state.currentUser;
@@ -87,11 +109,12 @@ export function updateUserUI(state, elements) {
     elements.userLoggedInView.classList.remove('hidden');
     elements.userLoggedInView.classList.add('flex');
     elements.userLoggedOutView.classList.add('hidden');
-    const firstName = (state.currentUser.name || '').split(' ')[0] || 'usuário';
-    elements.userWelcomeMessage.textContent = `Olá, ${firstName}`;
+    const firstName = (state.currentUser.name || '').split(' ')[0] || 'usuÃ¡rio';
+    elements.userWelcomeMessage.textContent = `OlÃ¡, ${firstName}`;
   } else {
     elements.userLoggedOutView.classList.remove('hidden');
     elements.userLoggedInView.classList.add('hidden');
     elements.userLoggedInView.classList.remove('flex');
   }
 }
+

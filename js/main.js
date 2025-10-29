@@ -7,7 +7,7 @@ import { fetchAddressByCep } from './services/cep.js';
 import { openCart, closeCart, toggleMobileMenu, showSection } from './components/ui.js';
 import { renderProducts, applyFiltersAndSort, openProductModal, closeProductModal } from './components/product.js';
 import { updateCartUI, addToCart, removeFromCart } from './components/cart.js';
-import { openLoginModal, closeLoginModal, openRegisterModal, closeRegisterModal, handleLogin, handleRegister, handleLogout, updateUserUI } from './components/auth.js';
+import { openLoginModal, closeLoginModal, openRegisterModal, closeRegisterModal, handleLogin, handleRegister, handleLogout, updateUserUI, handleForgotPassword } from './components/auth.js';
 import { apiListAddresses } from './services/api.js';
 import { initCheckout, renderAddressList, showNewAddressForm } from './components/checkout.js';
 import { initPix } from './components/pix.js';
@@ -122,11 +122,20 @@ document.addEventListener('DOMContentLoaded', () => {
             loginForm: document.getElementById('login-form'),
             loginErrorMessage: document.getElementById('login-error-message'),
             showRegisterModalBtn: document.getElementById('show-register-modal'),
+            forgotPasswordModal: document.getElementById('forgot-password-modal'),
+            forgotPasswordClose: document.getElementById('forgot-password-close'),
+            forgotPasswordCancel: document.getElementById('forgot-password-cancel'),
+            forgotPasswordForm: document.getElementById('forgot-password-form'),
+            forgotPasswordEmail: document.getElementById('forgot-password-email'),
+            forgotPasswordNew: document.getElementById('forgot-password-new'),
+            forgotPasswordConfirm: document.getElementById('forgot-password-confirm'),
+            forgotPasswordMessage: document.getElementById('forgot-password-message'),
             registerModal: document.getElementById('register-modal'),
             registerModalClose: document.getElementById('register-modal-close'),
             registerForm: document.getElementById('register-form'),
             registerErrorMessage: document.getElementById('register-error-message'),
             showLoginModalBtn: document.getElementById('show-login-modal'),
+            forgotPasswordButton: document.getElementById('forgot-password'),
         },
 
         // --- INICIALIZAÃ‡ÃƒO ---
@@ -155,6 +164,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const onList = (list, evt, handler) => {
                 if (!list || typeof list.forEach !== 'function') return;
                 list.forEach(el => on(el, evt, handler));
+            };
+            const forgotMsgEl = elements.forgotPasswordMessage;
+            const showForgotMessage = (text = '', isError = false) => {
+                if (!forgotMsgEl) return;
+                if (!text) {
+                    forgotMsgEl.textContent = '';
+                    forgotMsgEl.classList.add('hidden');
+                    forgotMsgEl.classList.remove('text-red-500', 'text-green-600');
+                    return;
+                }
+                forgotMsgEl.textContent = text;
+                forgotMsgEl.classList.remove('hidden', 'text-red-500', 'text-green-600');
+                forgotMsgEl.classList.add(isError ? 'text-red-500' : 'text-green-600');
+            };
+            const resetForgotForm = () => {
+                elements.forgotPasswordForm?.reset();
+                showForgotMessage('');
+            };
+            const openForgotModal = () => {
+                resetForgotForm();
+                elements.forgotPasswordModal?.classList.remove('hidden');
+                setTimeout(() => elements.forgotPasswordEmail?.focus(), 50);
+            };
+            const closeForgotModal = () => {
+                elements.forgotPasswordModal?.classList.add('hidden');
             };
 
             on(elements.searchInput, 'input', () => applyFiltersAndSort(state, elements));
@@ -232,6 +266,43 @@ document.addEventListener('DOMContentLoaded', () => {
             on(elements.registerModalClose, 'click', () => closeRegisterModal(elements));
             on(elements.showRegisterModalBtn, 'click', () => { closeLoginModal(elements); openRegisterModal(elements); });
             on(elements.showLoginModalBtn, 'click', () => { closeRegisterModal(elements); openLoginModal(elements); });
+            on(elements.forgotPasswordButton, 'click', (e) => {
+                e.preventDefault();
+                openForgotModal();
+            });
+            on(elements.forgotPasswordClose, 'click', closeForgotModal);
+            on(elements.forgotPasswordCancel, 'click', closeForgotModal);
+            on(elements.forgotPasswordModal, 'click', (e) => {
+                if (e.target === elements.forgotPasswordModal) closeForgotModal();
+            });
+            on(elements.forgotPasswordForm, 'submit', async (e) => {
+                e.preventDefault();
+                const email = elements.forgotPasswordEmail?.value || '';
+                const newPassword = elements.forgotPasswordNew?.value || '';
+                const confirmPassword = elements.forgotPasswordConfirm?.value || '';
+                if (newPassword !== confirmPassword) {
+                    showForgotMessage('As senhas não coincidem.', true);
+                    return;
+                }
+                const submitBtn = elements.forgotPasswordForm?.querySelector('button[type="submit"]');
+                submitBtn?.setAttribute('disabled', 'disabled');
+                submitBtn?.classList.add('opacity-70');
+                try {
+                    const ok = await handleForgotPassword(state, elements, { email, newPassword });
+                    if (ok) {
+                        const loginEmailInput = this.elements.loginForm?.querySelector('#login-email');
+                        if (loginEmailInput) loginEmailInput.value = email;
+                        setTimeout(() => {
+                            closeForgotModal();
+                            const loginPasswordInput = this.elements.loginForm?.querySelector('#login-password');
+                            loginPasswordInput?.focus();
+                        }, 1500);
+                    }
+                } finally {
+                    submitBtn?.removeAttribute('disabled');
+                    submitBtn?.classList.remove('opacity-70');
+                }
+            });
             on(elements.loginForm, 'submit', (e) => handleLogin(e, state, elements, () => this.handleCheckoutAttempt()));
             on(elements.registerForm, 'submit', (e) => handleRegister(e, state, elements, () => this.handleCheckoutAttempt()));
 
@@ -254,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const pixRadio = document.querySelector('input[name="payment-method"][value="pix"]');
                 if (pixRadio) pixRadio.checked = true;
-            } catch {}
+        } catch {}
         },
         
         // --- Lógica de CHECKOUT (Orquestração) ---
@@ -432,6 +503,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Depois que helpers foram definidos, carrega produtos do backend
     loadProductsFromApi(eCommerceApp.state, eCommerceApp.elements);
 });
+
+
 
 
 

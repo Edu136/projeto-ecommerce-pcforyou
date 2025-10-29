@@ -346,6 +346,7 @@
         <div>
           <label for="login-password" class="block font-semibold mb-1">Senha</label>
           <input type="password" id="login-password" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700" autocomplete="current-password" />
+          <button type="button" id="forgot-password" class="mt-2 text-sm text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-700 rounded">Esqueci minha senha</button>
         </div>
         <p class="text-red-500 text-sm hidden" id="login-error-message">Email ou senha inválidos.</p>
         <button type="submit" class="btn-add w-full py-3 rounded-lg font-semibold">Entrar</button>
@@ -354,6 +355,36 @@
         Não tem uma conta? 
         <button id="show-register-modal" class="font-semibold text-blue-700 hover:underline">Cadastre-se</button>
       </p>
+    </div>
+  </div>
+
+  <div id="forgot-password-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-[85]" role="dialog" aria-modal="true" aria-labelledby="forgot-password-title">
+    <div class="bg-white rounded-lg max-w-md w-full p-8 relative shadow-2xl">
+      <button id="forgot-password-close" aria-label="Fechar" class="absolute top-4 right-4 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-700 rounded-full p-1">
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <h3 id="forgot-password-title" class="text-2xl font-bold mb-6 text-center text-blue-900">Redefinir Senha</h3>
+      <form id="forgot-password-form" class="space-y-4">
+        <div>
+          <label for="forgot-password-email" class="block font-semibold mb-1">Email cadastrado</label>
+          <input type="email" id="forgot-password-email" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700" autocomplete="email" />
+        </div>
+        <div>
+          <label for="forgot-password-new" class="block font-semibold mb-1">Nova senha</label>
+          <input type="password" id="forgot-password-new" required minlength="6" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700" autocomplete="new-password" />
+        </div>
+        <div>
+          <label for="forgot-password-confirm" class="block font-semibold mb-1">Confirmar nova senha</label>
+          <input type="password" id="forgot-password-confirm" required minlength="6" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-700" autocomplete="new-password" />
+        </div>
+        <p id="forgot-password-message" class="hidden text-sm"></p>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="btn-add flex-1 py-3 rounded-lg font-semibold">Atualizar senha</button>
+          <button type="button" id="forgot-password-cancel" class="flex-1 py-3 rounded-lg border border-gray-300 font-semibold hover:bg-gray-50">Cancelar</button>
+        </div>
+      </form>
     </div>
   </div>
 

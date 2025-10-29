@@ -36,9 +36,11 @@ export async function apiLogin({ email, senha }) {
   return apiJson('/users/login', { method: 'POST', body: JSON.stringify(payload) });
 }
 
-export async function apiChangePassword({ id, newPassword }) {
+export async function apiChangePassword({ email, newPassword }) {
+  const target = typeof email === 'string' ? email.trim() : '';
+  if (!target) throw new Error('Email é obrigatório para alterar a senha.');
   const payload = { novaSenha: newPassword, password: newPassword, senha: newPassword };
-  return apiJson(`/users/editPassword/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return apiJson(`/users/editPassword/${encodeURIComponent(target)}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
 // Optional: buscar usuário por email, caso o backend exponha
