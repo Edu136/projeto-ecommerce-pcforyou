@@ -29,7 +29,9 @@ export async function handleLogin(event, state, elements, checkoutCallback) {
     }
     updateUserUI(state, elements);
     closeLoginModal(elements);
-    if (checkoutCallback) checkoutCallback();
+    const wantsCheckout = !!state.checkoutIntent;
+    state.checkoutIntent = false;
+    if (checkoutCallback && wantsCheckout) checkoutCallback();
   } catch (e) {
     elements.loginErrorMessage.textContent = 'Email ou senha inválidos';
     elements.loginErrorMessage.classList.remove('hidden');
@@ -52,7 +54,9 @@ export async function handleRegister(event, state, elements, checkoutCallback) {
     alert('Cadastro realizado com sucesso! Você já está logado.');
     updateUserUI(state, elements);
     closeRegisterModal(elements);
-    if (checkoutCallback) checkoutCallback();
+    const wantsCheckout = !!state.checkoutIntent;
+    state.checkoutIntent = false;
+    if (checkoutCallback && wantsCheckout) checkoutCallback();
   } catch (e) {
     elements.registerErrorMessage.classList.remove('hidden');
     elements.registerErrorMessage.innerHTML = e.message || 'Falha ao registrar. Tente novamente.';
@@ -62,6 +66,7 @@ export async function handleRegister(event, state, elements, checkoutCallback) {
 
 export function handleLogout(state, elements) {
   state.currentUser = null;
+  state.checkoutIntent = false;
   updateUserUI(state, elements);
 }
 
@@ -90,4 +95,3 @@ export function updateUserUI(state, elements) {
     elements.userLoggedInView.classList.remove('flex');
   }
 }
-

@@ -31,20 +31,25 @@ export function initPix(state, elements) {
 
   btn?.addEventListener('click', async () => {
     const chave = (document.getElementById('pix-key-input')?.value || '').trim();
-    if (!chave) { alert('Informe a chave Pix.'); return; }
-
     const total = (state.cart || []).reduce((s, it) => s + (it.price * it.quantity), 0);
     const nome = (state.currentUser?.name || 'Cliente').toString().substring(0, 25);
     const cidade = 'BELO HORIZONTE';
     const txid = `PCFY${Date.now().toString().slice(-10)}`;
 
     const base = getApiBase();
+    const pixRequest = {
+      nome,
+      cidade,
+      valor: Number(total.toFixed(2)),
+      txid
+    };
+    if (chave) pixRequest.chave = chave;
     try {
       // payload textual
       const resPayload = await fetch(`${base}/pix/payload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave, nome, cidade, valor: Number(total.toFixed(2)), txid })
+        body: JSON.stringify(pixRequest)
       });
       const payloadText = await resPayload.text();
       if (resPayload.ok) payloadArea.value = payloadText; else payloadArea.value = 'Erro ao gerar payload';
@@ -53,7 +58,7 @@ export function initPix(state, elements) {
       const resQr = await fetch(`${base}/pix/qrcode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave, nome, cidade, valor: Number(total.toFixed(2)), txid })
+        body: JSON.stringify(pixRequest)
       });
       if (!resQr.ok) throw new Error('Falha ao gerar QR');
       const blob = await resQr.blob();

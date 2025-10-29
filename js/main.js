@@ -1,4 +1,4 @@
-// js/main.js
+﻿// js/main.js
 
 // --- IMPORTS ---
 import { productsData } from './data.js';
@@ -21,16 +21,17 @@ document.addEventListener('DOMContentLoaded', () => {
             cart: [],
             addresses: [],
             currentUser: null,
+            checkoutIntent: false,
         },
 
         // --- ELEMENTOS DO DOM ---
         elements: {
-            // --- GERAL & NAVEGAÇÃO ---
+            // --- GERAL & NAVEGAÃ‡ÃƒO ---
             btnMenu: document.getElementById('btn-menu'),
             mobileMenu: document.getElementById('mobile-menu'),
             mainSections: document.querySelectorAll('main > section:not(#checkout-section):not(#confirmation)'),
 
-            // --- AUTENTICAÇÃO & USUÁRIO (HEADER) ---
+            // --- AUTENTICAÃ‡ÃƒO & USUÃRIO (HEADER) ---
             userLoggedOutView: document.getElementById('user-logged-out'),
             userLoggedInView: document.getElementById('user-logged-in'),
             userLoginLink: document.getElementById('user-login-link'),
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- NAV LINKS (HOME/CATALOG) ---
             homeLinks: document.querySelectorAll('a[href="#home"]'),
             catalogLinks: document.querySelectorAll('a[href="#catalog"]'),
+            checkoutLinks: document.querySelectorAll('a[href="#checkout-section"]'),
 
             // --- LISTA DE PRODUTOS ---
             productList: document.getElementById('product-list'),
@@ -66,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             accountNoAddress: document.getElementById('account-no-address'),
             accountRefresh: document.getElementById('account-refresh'),
 
-            // --- CARRINHO (SIDEBAR E BOTÃO) ---
+            // --- CARRINHO (SIDEBAR E BOTÃƒO) ---
             btnOpenCart: document.getElementById('btn-open-cart'),
             cartSidebar: document.getElementById('cart'),
             cartClose: document.getElementById('cart-close'),
@@ -84,14 +86,14 @@ document.addEventListener('DOMContentLoaded', () => {
             checkoutUserName: document.getElementById('checkout-user-name'),
             checkoutUserEmail: document.getElementById('checkout-user-email'),
 
-            // Etapa de Endereço
+            // Etapa de EndereÃ§o
             addressStep: document.getElementById('address-step'),
             addressSelection: document.getElementById('address-selection'),
             addressList: document.getElementById('address-list'),
             noAddressMessage: document.getElementById('no-address-message'),
             btnShowNewAddressForm: document.getElementById('btn-show-new-address-form'),
 
-            // Formulário de Novo Endereço
+            // FormulÃ¡rio de Novo EndereÃ§o
             newAddressFormContainer: document.getElementById('new-address-form-container'),
             checkoutForm: document.getElementById('checkout-form'),
             cep: document.getElementById("cep"),
@@ -109,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnBackToAddress: document.getElementById('btn-back-to-address'), // <-- ADICIONE ESTA LINHA
             orderSummary: document.getElementById('order-summary'), 
 
-            // --- TELA DE CONFIRMAÇÃO ---
+            // --- TELA DE CONFIRMAÃ‡ÃƒO ---
             confirmationSection: document.getElementById('confirmation'),
             orderCode: document.getElementById('order-code'),
             btnBackHome: document.getElementById('btn-back-home'),
@@ -127,32 +129,39 @@ document.addEventListener('DOMContentLoaded', () => {
             showLoginModalBtn: document.getElementById('show-login-modal'),
         },
 
-        // --- INICIALIZAÇÃO ---
+        // --- INICIALIZAÃ‡ÃƒO ---
         init() {
             this.state.products = [];
             this.bindEvents();
 
             initCheckout(this.state, this.elements, () => this.handleFinalizePurchase());
             
-            // Renderizações Iniciais
+            // RenderizaÃ§Ãµes Iniciais
             applyFiltersAndSort(this.state, this.elements);
             updateCartUI(this.state, this.elements);
             updateUserUI(this.state, this.elements);
 
-            // Carregamento de produtos é feito após definir helpers de API
+            // Carregamento de produtos Ã© feito apÃ³s definir helpers de API
         },
 
         // --- VINCULAR EVENTOS ---
         bindEvents() {
             const { elements, state } = this;
+            const on = (target, evt, handler) => {
+                if (target && typeof target.addEventListener === 'function') {
+                    target.addEventListener(evt, handler);
+                }
+            };
+            const onList = (list, evt, handler) => {
+                if (!list || typeof list.forEach !== 'function') return;
+                list.forEach(el => on(el, evt, handler));
+            };
 
-            // Filtros e Ordenação
-            elements.searchInput.addEventListener('input', () => applyFiltersAndSort(state, elements));
-            elements.categoryFilter.addEventListener('change', () => applyFiltersAndSort(state, elements));
-            elements.sortFilter.addEventListener('change', () => applyFiltersAndSort(state, elements));
+            on(elements.searchInput, 'input', () => applyFiltersAndSort(state, elements));
+            on(elements.categoryFilter, 'change', () => applyFiltersAndSort(state, elements));
+            on(elements.sortFilter, 'change', () => applyFiltersAndSort(state, elements));
 
-            // Ações de Produtos (Delegação de Eventos)
-            elements.productList.addEventListener('click', (e) => {
+            on(elements.productList, 'click', (e) => {
                 const button = e.target.closest('button[data-action]');
                 if (!button) return;
                 const { id, action } = button.dataset;
@@ -160,71 +169,73 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (action === 'add') addToCart(id, state, elements);
             });
 
-            // Modal de Produto
-            elements.modalClose.addEventListener('click', () => closeProductModal(elements));
-            elements.productModal.addEventListener('click', (e) => {
+            on(elements.modalClose, 'click', () => closeProductModal(elements));
+            on(elements.productModal, 'click', (e) => {
                 if (e.target === elements.productModal) closeProductModal(elements);
             });
-            elements.modalAddCart.addEventListener('click', (e) => {
+            on(elements.modalAddCart, 'click', (e) => {
                 addToCart(e.target.dataset.id, state, elements);
                 closeProductModal(elements);
             });
 
-            // Carrinho
-            elements.btnOpenCart.addEventListener('click', () => openCart(elements));
-            elements.navCartLink.addEventListener('click', () => openCart(elements));
-            elements.cartClose.addEventListener('click', () => closeCart(elements));
-            elements.cartItems.addEventListener('click', (e) => {
+            on(elements.btnOpenCart, 'click', () => openCart(elements));
+            on(elements.navCartLink, 'click', () => openCart(elements));
+            on(elements.cartClose, 'click', () => closeCart(elements));
+            on(elements.cartItems, 'click', (e) => {
                 const button = e.target.closest('button[data-action="remove"]');
                 if (button) removeFromCart(button.dataset.id, state, elements);
             });
 
-            // Checkout
-            elements.btnCheckout.addEventListener('click', () => this.handleCheckoutAttempt());
-            // O submit do checkout é tratado em js/components/checkout.js (initCheckout)
-            elements.btnBackHome.addEventListener('click', () => {
-                showSection(document.getElementById('home'));
+            on(elements.btnCheckout, 'click', () => this.handleCheckoutAttempt());
+            on(elements.btnBackHome, 'click', () => {
+                showSection(document.getElementById('home'), { alsoShow: [document.getElementById('catalog')] });
                 loadProductsFromApi(this.state, this.elements);
             });
 
-            // Navegação básica (Home / Produtos)
-            elements.homeLinks.forEach(a => a.addEventListener('click', (e) => {
+            onList(elements.homeLinks, 'click', (e) => {
                 e.preventDefault();
-                showSection(document.getElementById('home'));
+                showSection(document.getElementById('home'), { alsoShow: [document.getElementById('catalog')] });
                 elements.mobileMenu?.classList.add('hidden');
-                // opcional: recarrega catálogo em background
                 loadProductsFromApi(this.state, this.elements);
-            }));
-            elements.catalogLinks.forEach(a => a.addEventListener('click', (e) => {
+            });
+            onList(elements.catalogLinks, 'click', (e) => {
                 e.preventDefault();
                 showSection(document.getElementById('catalog'));
                 elements.mobileMenu?.classList.add('hidden');
                 loadProductsFromApi(this.state, this.elements);
-            }));
+            });
+            onList(elements.checkoutLinks, 'click', async (e) => {
+                e.preventDefault();
+                elements.mobileMenu?.classList.add('hidden');
+                await this.handleCheckoutAttempt();
+            });
 
-            // Menu Mobile
-            elements.btnMenu.addEventListener('click', () => toggleMobileMenu(elements));
-            elements.mobileNavCartLink.addEventListener('click', (e) => {
+            on(elements.btnMenu, 'click', () => toggleMobileMenu(elements));
+            on(elements.mobileNavCartLink, 'click', (e) => {
                 e.preventDefault();
                 elements.mobileMenu.classList.add('hidden');
                 openCart(elements);
             });
 
-            // Autenticação
-            elements.userLoginLink.addEventListener('click', (e) => { e.preventDefault(); openLoginModal(elements); });
-            elements.userLogoutButton.addEventListener('click', (e) => { e.preventDefault(); handleLogout(state, elements); });
-            if (elements.btnAccount) {
-                elements.btnAccount.addEventListener('click', async () => { await this.showAccount(); });
-            }
-            elements.loginModalClose.addEventListener('click', () => closeLoginModal(elements));
-            elements.registerModalClose.addEventListener('click', () => closeRegisterModal(elements));
-            elements.showRegisterModalBtn.addEventListener('click', () => { closeLoginModal(elements); openRegisterModal(elements); });
-            elements.showLoginModalBtn.addEventListener('click', () => { closeRegisterModal(elements); openLoginModal(elements); });
-            elements.loginForm.addEventListener('submit', (e) => handleLogin(e, state, elements, () => this.handleCheckoutAttempt()));
-            elements.registerForm.addEventListener('submit', (e) => handleRegister(e, state, elements, () => this.handleCheckoutAttempt()));
+            on(elements.userLoginLink, 'click', (e) => {
+                e.preventDefault();
+                state.checkoutIntent = false;
+                openLoginModal(elements);
+            });
+            on(elements.userLogoutButton, 'click', (e) => {
+                e.preventDefault();
+                state.selectedAddressId = null;
+                handleLogout(state, elements);
+            });
+            on(elements.btnAccount, 'click', async () => { await this.showAccount(); });
+            on(elements.loginModalClose, 'click', () => closeLoginModal(elements));
+            on(elements.registerModalClose, 'click', () => closeRegisterModal(elements));
+            on(elements.showRegisterModalBtn, 'click', () => { closeLoginModal(elements); openRegisterModal(elements); });
+            on(elements.showLoginModalBtn, 'click', () => { closeRegisterModal(elements); openLoginModal(elements); });
+            on(elements.loginForm, 'submit', (e) => handleLogin(e, state, elements, () => this.handleCheckoutAttempt()));
+            on(elements.registerForm, 'submit', (e) => handleRegister(e, state, elements, () => this.handleCheckoutAttempt()));
 
-            // API de CEP
-            elements.cep.addEventListener('blur', async () => {
+            on(elements.cep, 'blur', async () => {
                 if (!validaCep(elements.cep.value)) return;
                 const data = await fetchAddressByCep(elements.cep.value);
                 if (data) {
@@ -235,70 +246,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Oculta opções de pagamento Cartão de Crédito e Boleto
             try {
                 const toHide = document.querySelectorAll('input[name="payment-method"][value="credit-card"], input[name="payment-method"][value="boleto"]');
                 toHide.forEach(inp => {
                     const label = inp.closest('label');
                     if (label) label.classList.add('hidden');
                 });
-                // Define PIX como padrão se existir
                 const pixRadio = document.querySelector('input[name="payment-method"][value="pix"]');
                 if (pixRadio) pixRadio.checked = true;
             } catch {}
         },
         
-        // --- LÓGICA DE CHECKOUT (Orquestração) ---
-        handleCheckoutAttempt() {
-            if (this.state.cart.length === 0) return;
+        // --- Lógica de CHECKOUT (Orquestração) ---
+        async handleCheckoutAttempt() {
+            if (!Array.isArray(this.state.cart) || this.state.cart.length === 0) {
+                this.state.checkoutIntent = false;
+                alert("Adicione itens ao carrinho antes de ir para o checkout.");
+                return;
+            }
             if (this.state.currentUser) {
-                this.showCheckout();
+                this.state.checkoutIntent = false;
+                await this.showCheckout();
             } else {
+                this.state.checkoutIntent = true;
                 openLoginModal(this.elements);
             }
         },
 
-        // showCheckout() {
-        //     closeCart(this.elements);
-        //     this.elements.checkoutUserName.textContent = this.state.currentUser.name;
-        //     this.elements.checkoutUserEmail.textContent = this.state.currentUser.email;
-        //     showSection(this.elements.checkoutSection);
-        // },
-
-        showCheckout() {
+        async showCheckout() {
             closeCart(this.elements);
             this.elements.checkoutUserName.textContent = this.state.currentUser.name;
             this.elements.checkoutUserEmail.textContent = this.state.currentUser.email;
 
-            // Lógica para exibir endereços ou formulário
-            // tenta buscar endereços do backend, se tivermos ID
             if (this.state.currentUser?.id) {
-                apiListAddresses(this.state.currentUser.id)
-                    .then(list => {
-                        this.state.currentUser.addresses = Array.isArray(list) ? list : [];
-                        if (this.state.currentUser.addresses.length > 0) {
-                            if (!this.state.selectedAddressId) {
-                                this.state.selectedAddressId = this.state.currentUser.addresses[0].id;
-                            }
-                            renderAddressList(this.state.currentUser, this.elements);
-                            this.elements.newAddressFormContainer.classList.add('hidden');
-                            this.elements.addressSelection.classList.remove('hidden');
-                        }
-                    })
-                    .catch(() => { /* mantém o que já tiver */ });
-            }
-            if (this.state.currentUser.addresses && this.state.currentUser.addresses.length > 0) {
-                if (!this.state.selectedAddressId) {
-                    this.state.selectedAddressId = this.state.currentUser.addresses[0].id;
+                const previous = Array.isArray(this.state.currentUser.addresses)
+                    ? [...this.state.currentUser.addresses]
+                    : [];
+                try {
+                    const list = await apiListAddresses(this.state.currentUser.id);
+                    this.state.currentUser.addresses = Array.isArray(list) ? list : [];
+                } catch {
+                    this.state.currentUser.addresses = previous;
                 }
-                renderAddressList(this.state.currentUser, this.elements);
+            }
+
+            const addresses = this.state.currentUser.addresses || [];
+            if (addresses.length > 0) {
+                const selectedExists = addresses.some(addr => String(addr.id) === String(this.state.selectedAddressId));
+                if (!selectedExists) {
+                    this.state.selectedAddressId = addresses[0].id;
+                }
+                renderAddressList(this.state.currentUser, this.elements, this.state.selectedAddressId);
                 this.elements.newAddressFormContainer.classList.add('hidden');
                 this.elements.addressSelection.classList.remove('hidden');
+                this.elements.paymentSection.classList.add('hidden');
+                this.elements.addressStep.classList.remove('hidden');
             } else {
                 showNewAddressForm(this.elements);
             }
 
-            // Garante que a seção de pagamento comece escondida
             this.elements.paymentSection.classList.add('hidden');
             this.elements.addressStep.classList.remove('hidden');
 
@@ -306,7 +312,11 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         async showAccount() {
-            if (!this.state.currentUser) { openLoginModal(this.elements); return; }
+            if (!this.state.currentUser) {
+                this.state.checkoutIntent = false;
+                openLoginModal(this.elements);
+                return;
+            }
             const u = this.state.currentUser;
             this.elements.accountName.textContent = u.name || '-';
             this.elements.accountEmail.textContent = u.email || '-';
@@ -346,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const div = document.createElement('div');
                 div.className = 'p-3 border rounded-md';
                 div.innerHTML = `<div class=\"font-semibold\">${a.logradouro}, ${a.numero}</div>
-                                 <div class=\"text-sm text-gray-600\">${a.bairro} - ${a.cidade}/${a.estado} • CEP: ${a.cep || ''}</div>
+                                 <div class=\"text-sm text-gray-600\">${a.bairro} - ${a.cidade}/${a.estado} â€¢ CEP: ${a.cep || ''}</div>
                                  ${a.complemento ? `<div class=\"text-sm text-gray-600\">${a.complemento}</div>` : ''}`;
                 box.appendChild(div);
             }
@@ -358,8 +368,13 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Compra finalizada com sucesso! (Simulação)");
             const orderCode = `PCFY-${Date.now().toString().slice(-6)}`;
             document.getElementById('order-code').textContent = orderCode;
+            document.body.style.overflow = 'auto';
+            document.body.style.overflowY = 'auto';
+            document.documentElement.style.overflow = 'auto';
+            document.documentElement.style.overflowY = 'auto';
             showSection(this.elements.confirmationSection);
             this.state.cart = [];
+            this.state.checkoutIntent = false;
             updateCartUI(this.state, this.elements);
             this.elements.checkoutForm.reset();
             // recarrega catálogo
@@ -369,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     eCommerceApp.init();
 
-    // ---- Integração com backend de produtos ----
+    // ---- IntegraÃ§Ã£o com backend de produtos ----
     const LS_API_KEY = 'pcfy_api_base';
     const API_DEFAULT = 'http://localhost:8080';
     const PLACEHOLDER_IMG = 'assets/images/NBK_ASUS_ROG.jpeg';
@@ -400,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.products = list;
             applyFiltersAndSort(state, elements);
         } catch (e) {
-            // fallback para dados locais se necessário
+            // fallback para dados locais se necessÃ¡rio
             state.products = productsData.map(p => ({
                 id: p.id,
                 name: p.name,
@@ -417,3 +432,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Depois que helpers foram definidos, carrega produtos do backend
     loadProductsFromApi(eCommerceApp.state, eCommerceApp.elements);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-// js/components/checkout.js
+﻿// js/components/checkout.js
 import { formatCurrency } from '../utils/helpers.js';
 import { apiListAddresses, apiAddAddress, getApiBase } from '../services/api.js';
 
@@ -7,7 +7,7 @@ function renderOrderSummary(state, elements) {
   const { currentUser, cart } = state;
   const { orderSummary } = elements;
   let selectedAddress = (currentUser.addresses || []).find(addr => String(addr.id) === String(state.selectedAddressId));
-  // fallback: seleciona o primeiro endereço caso nenhum tenha sido escolhido
+  // fallback: seleciona o primeiro endereÃ§o caso nenhum tenha sido escolhido
   if (!selectedAddress && (currentUser.addresses || []).length > 0) {
     state.selectedAddressId = currentUser.addresses[0].id;
     selectedAddress = currentUser.addresses[0];
@@ -44,7 +44,7 @@ function renderOrderSummary(state, elements) {
     </div>`;
 }
 
-export function renderAddressList(user, elements) {
+export function renderAddressList(user, elements, selectedId = null) {
   const { addressList, noAddressMessage } = elements;
   addressList.innerHTML = '';
   const list = user.addresses || [];
@@ -55,7 +55,8 @@ export function renderAddressList(user, elements) {
   noAddressMessage.classList.add('hidden');
   list.forEach(addr => {
     const card = document.createElement('div');
-    card.className = 'p-4 border rounded-lg cursor-pointer hover:bg-gray-50';
+    const isSelected = String(addr.id) === String(selectedId);
+    card.className = 'p-4 border rounded-lg cursor-pointer hover:bg-gray-50' + (isSelected ? ' selected-address' : '');
     card.dataset.addressId = addr.id;
     card.innerHTML = `
       <p class="font-semibold">${addr.logradouro}, ${addr.numero}</p>
@@ -68,7 +69,7 @@ export function renderAddressList(user, elements) {
 export function showNewAddressForm(elements) {
   elements.addressSelection.classList.add('hidden');
   elements.newAddressFormContainer.classList.remove('hidden');
-  // marca salvar endereço como padrão, se existir o checkbox
+  // marca salvar endereÃ§o como padrÃ£o, se existir o checkbox
   try { const cb = elements.checkoutForm?.querySelector('#save-address'); if (cb) cb.checked = true; } catch {}
 }
 
@@ -103,7 +104,7 @@ export function initCheckout(state, elements, finalizeCallback) {
       try {
         const list = await apiListAddresses(state.currentUser.id);
         state.currentUser.addresses = Array.isArray(list) ? list : [];
-        renderAddressList(state.currentUser, elements);
+        renderAddressList(state.currentUser, elements, state.selectedAddressId);
       } catch (_) {
         alert('Nao foi possivel recarregar os enderecos.');
       }
@@ -136,17 +137,21 @@ export function initCheckout(state, elements, finalizeCallback) {
     };
     let created = { id: Date.now(), ...dto };
     const shouldSave = elements.checkoutForm.querySelector('#save-address').checked;
+    if (!Array.isArray(state.currentUser.addresses)) state.currentUser.addresses = [];
     if (shouldSave && state.currentUser?.id) {
       try {
         const res = await apiAddAddress(dto);
         if (res?.id) created = res;
       } catch (_) { /* fallback local */ }
-      if (!Array.isArray(state.currentUser.addresses)) state.currentUser.addresses = [];
+    }
+    const existingIndex = state.currentUser.addresses.findIndex(addr => String(addr.id) === String(created.id));
+    if (existingIndex >= 0) {
+      state.currentUser.addresses[existingIndex] = created;
+    } else {
       state.currentUser.addresses.push(created);
-      // atualiza a lista na UI
-      try { renderAddressList(state.currentUser, elements); } catch {}
     }
     state.selectedAddressId = created.id;
+    try { renderAddressList(state.currentUser, elements, state.selectedAddressId); } catch {}
     proceedToPayment(state, elements);
   });
 
@@ -158,17 +163,26 @@ export function initCheckout(state, elements, finalizeCallback) {
     if (paymentMethod.value === 'pix') {
       const chaveInput = document.getElementById('pix-key-input');
       const chave = (chaveInput?.value || '').trim();
-      if (!chave) { alert('Informe a chave Pix.'); return; }
-
-      const total = (state.cart || []).reduce((s, it) => s + (it.price * it.quantity), 0);
+      const total = (state.cart || []).reduce((s, it) => s + (Number(it.price) * Number(it.quantity || 1)), 0);
+      if (!Number.isFinite(total) || total <= 0) {
+        alert('Carrinho vazio ou total inválido para PIX.');
+        return;
+      }
       const nome = (state.currentUser?.name || 'LOJA').toString().substring(0, 25);
       const cidade = 'BELO HORIZONTE';
       const txid = `PCFY-${Date.now().toString().slice(-6)}`;
       const base = getApiBase();
+      const pixRequest = {
+        nome,
+        cidade,
+        valor: total.toFixed(2),
+        txid
+      };
+      if (chave) pixRequest.chave = chave;
       try {
         const payloadRes = await fetch(`${base}/pix/payload`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chave, nome, cidade, valor: Number(total.toFixed(2)), txid })
+          body: JSON.stringify(pixRequest)
         });
         if (!payloadRes.ok) { alert('Erro ao gerar payload Pix'); return; }
         const payloadText = await payloadRes.text();
@@ -177,7 +191,7 @@ export function initCheckout(state, elements, finalizeCallback) {
 
         const qrRes = await fetch(`${base}/pix/qrcode`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chave, nome, cidade, valor: Number(total.toFixed(2)), txid })
+          body: JSON.stringify(pixRequest)
         });
         if (!qrRes.ok) { alert('Erro ao gerar QR Code Pix'); return; }
         const blob = await qrRes.blob();
@@ -186,7 +200,7 @@ export function initCheckout(state, elements, finalizeCallback) {
         if (img) img.src = url;
         const modal = document.getElementById('pix-modal');
         if (modal) modal.classList.remove('hidden');
-        return; // não finaliza compra ainda
+        return; // nÃ£o finaliza compra ainda
       } catch (e) {
         alert('Falha ao contatar a API Pix. Verifique a API Base e o backend.');
         return;
@@ -206,3 +220,6 @@ export function initCheckout(state, elements, finalizeCallback) {
     finalizeCallback();
   });
 }
+
+
+
